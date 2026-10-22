@@ -512,15 +512,15 @@ class Units(unittest.TestCase):
     def test_system_language_picks_the_first_translated_language(self):
         with tempfile.TemporaryDirectory() as tmp:
             prefs = os.path.join(tmp, "prefs.plist")
-            for languages, expected in [(["uk-UA", "en-US"], "uk"), (["de-DE", "ru-RU"], "ru"),
-                                        (["de-DE"], "en"), ([], "en")]:
+            for languages, expected in [(["uk-UA", "en-US"], "uk"), (["de-DE", "uk-UA"], "uk"),
+                                        (["ru-RU", "uk-UA", "en-US"], "uk"), (["de-DE"], "en"), ([], "en")]:
                 with self.subTest(languages=languages):
                     with open(prefs, "wb") as f:
                         plistlib.dump({"AppleLanguages": languages}, f, fmt=plistlib.FMT_BINARY)
                     self.assertEqual(g.system_language(prefs), expected)
             self.assertEqual(g.system_language(os.path.join(tmp, "missing.plist")), "en")
             for content in [plistlib.dumps({"AppleLanguages": 5}), plistlib.dumps(["not", "a", "dict"]),
-                            plistlib.dumps({"AppleLanguages": ["ru"]})[:40]]:
+                            plistlib.dumps({"AppleLanguages": ["uk"]})[:40]]:
                 with self.subTest(content=content[:20]):
                     with open(prefs, "wb") as f:
                         f.write(content)

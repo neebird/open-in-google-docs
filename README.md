@@ -3,11 +3,6 @@
 <p align="center">Finder Quick Action for macOS</p>
 
 <p align="center">
-  <a href="README.md"><img src="docs/lang-en-active.svg" alt="English" height="30"></a>
-  <a href="README.ru.md"><img src="docs/lang-ru.svg" alt="Русский" height="30"></a>
-</p>
-
-<p align="center">
   <img src="docs/demo.gif" width="860" alt="Right-click a Word file in Finder, choose Quick Actions → Open in Google Docs, and it opens as a Google Doc">
 </p>
 
@@ -22,7 +17,7 @@ Right-click Word, Excel, OpenDocument, RTF or CSV files in Finder and get them a
 
 - One Google Drive API request per file: upload and conversion together, about 3–5 s per file. Up to 8 files at a time.
 - The converted files go to a **From Mac** folder in your Drive.
-- Notifications follow your macOS language (English, Russian, Ukrainian) and say what went wrong: password-protected or damaged file, no internet, Drive full, Google not responding.
+- Notifications follow your macOS language (English or Ukrainian) and say what went wrong: password-protected or damaged file, no internet, Drive full, Google not responding.
 - If Google goes silent in the middle of an upload, the tool checks whether the file was created anyway, opens it if so, and otherwise retries once.
 - Nothing to install from pip: only Python's standard library on the system `/usr/bin/python3`.
 
