@@ -48,8 +48,10 @@ Google wants every app to have its own OAuth client, and rclone's shared client 
 1. Open the [Google Cloud console](https://console.cloud.google.com/) and create a project (any name).
 2. **APIs & Services → Library**: find **Google Drive API** and click **Enable**.
 3. **Google Auth Platform** (formerly *OAuth consent screen*): click **Get started**, enter an app name (for example "Open in Google Docs") and your email, choose **External**.
-4. **Audience → Publish app**, so the status becomes **In production**. Without this, Google signs you out every 7 days. The `drive.file` scope is not a sensitive scope, so Google does not need to review the app.
-5. **Clients → Create client → Desktop app**. Copy the **Client ID** and the **Client secret**.
+4. **Data Access → Add or remove scopes**: add `https://www.googleapis.com/auth/drive.file` and save.
+5. **Audience → Test users → Add users**: add your own Google account.
+6. **Clients → Create client → Desktop app**. Copy the **Client ID** and the **Client secret**.
+7. Optional: **Audience → Publish app**. While the app is in *Testing*, Google asks you to sign in again every 7 days; the tool then opens the sign-in page for you. If **Publish app** is greyed out, Google first wants a home page and a privacy policy link: fill them in under **Branding** (any page you control works, for example a free GitHub Pages site), add that site's domain under **Authorized domains**, save, and publish. The `drive.file` scope is not a sensitive scope, so Google doesn't need to review the app.
 
 ### 2. Connect rclone to your Drive
 
@@ -92,7 +94,7 @@ Every run is logged to `~/Library/Logs/to_gdocs.log`, including Google's own rea
 |---|---|
 | Google Drive isn't set up yet | Do setup steps 1–2. The rclone remote must be called `gdrive` and use your own client ID. The tool reads `~/.config/rclone/rclone.conf` (or the legacy `~/.rclone.conf`; check with `rclone config file`) and can't read a password-encrypted rclone config. |
 | rclone isn't installed | `brew install rclone` |
-| Sign in to Google again | A browser page opens: click **Allow** and run the Quick Action again. If this happens every week, publish your app (step 1.4). |
+| Sign in to Google again | A browser page opens: click **Allow** and run the Quick Action again. If this happens every week, publish your app (step 1.7). |
 | Google couldn't open the file | The file is probably password-protected. |
 | Google couldn't read the file | The file is empty or damaged. |
 | Google didn't respond | Try again. The tool already retried once. |

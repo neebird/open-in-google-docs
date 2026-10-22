@@ -48,8 +48,10 @@ Google хочет, чтобы у каждого приложения был св
 1. Открой [Google Cloud Console](https://console.cloud.google.com/) и создай проект с любым именем.
 2. **APIs & Services → Library**: найди **Google Drive API** и нажми **Enable**.
 3. **Google Auth Platform** (раньше *OAuth consent screen*): **Get started**, имя приложения (например, «Open in Google Docs»), свой email, тип **External**.
-4. **Audience → Publish app**, чтобы статус стал **In production**. Без этого Google будет разлогинивать тебя каждые 7 дней. Доступ `drive.file` не относится к чувствительным, поэтому проверка приложения Google не нужна.
-5. **Clients → Create client → Desktop app**. Скопируй **Client ID** и **Client secret**.
+4. **Data Access → Add or remove scopes**: добавь `https://www.googleapis.com/auth/drive.file` и сохрани.
+5. **Audience → Test users → Add users**: добавь свой аккаунт Google.
+6. **Clients → Create client → Desktop app**. Скопируй **Client ID** и **Client secret**.
+7. По желанию: **Audience → Publish app**. Пока приложение в режиме *Testing*, Google раз в 7 дней просит войти заново, и утилита сама открывает для этого страницу входа. Если кнопка **Publish app** серая, Google сначала хочет домашнюю страницу и ссылку на политику конфиденциальности: заполни их во вкладке **Branding** (подойдёт любая страница, которой ты управляешь, например бесплатный сайт на GitHub Pages), добавь домен этого сайта в **Authorized domains**, сохрани и опубликуй. Доступ `drive.file` не относится к чувствительным, поэтому проверка приложения Google не нужна.
 
 ### 2. Подключи rclone к Drive
 
@@ -92,7 +94,7 @@ rclone config create gdrive drive client_id=ТВОЙ_CLIENT_ID client_secret=Т�
 |---|---|
 | Google Drive ещё не настроен | Сделай шаги 1–2. Подключение rclone должно называться `gdrive` и использовать твой client ID. Утилита читает `~/.config/rclone/rclone.conf` (или старый `~/.rclone.conf`; проверь командой `rclone config file`) и не умеет читать конфиг rclone, зашифрованный паролем. |
 | rclone не установлен | `brew install rclone` |
-| Нужно заново войти в Google | Откроется страница входа: нажми **Разрешить** и запусти Quick Action ещё раз. Если так каждую неделю, опубликуй приложение (шаг 1.4). |
+| Нужно заново войти в Google | Откроется страница входа: нажми **Разрешить** и запусти Quick Action ещё раз. Если так каждую неделю, опубликуй приложение (шаг 1.7). |
 | Google не смог открыть файл | Скорее всего, файл под паролем. |
 | Google не смог прочитать файл | Файл пустой или повреждён. |
 | Google не ответил | Попробуй ещё раз. Один повтор утилита уже сделала сама. |
