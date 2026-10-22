@@ -1,0 +1,17 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Shell scripts parse
+        run: bash -n install.sh && bash -n uninstall.sh && bash -n to_gdocs.sh
+      - name: Quick Action plists are valid
+        run: find quick-actions -type f -print0 | xargs -0 plutil -lint
+      - name: Tests on the system Python the Quick Action uses
+        run: /usr/bin/python3 -m unittest discover -s tests -v
