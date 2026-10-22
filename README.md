@@ -17,7 +17,7 @@ Right-click Word, Excel, OpenDocument, RTF or CSV files in Finder and get them a
 
 - One Google Drive API request per file: upload and conversion together, about 3–5 s per file. Up to 8 files at a time.
 - The converted files go to a **From Mac** folder in your Drive.
-- Notifications follow your macOS language (English or Ukrainian) and say what went wrong: password-protected or damaged file, no internet, Drive full, Google not responding.
+- Clear notifications say what went wrong: password-protected or damaged file, no internet, Drive full, Google not responding.
 - If Google goes silent in the middle of an upload, the tool checks whether the file was created anyway, opens it if so, and otherwise retries once.
 - Nothing to install from pip: only Python's standard library on the system `/usr/bin/python3`.
 
@@ -99,7 +99,7 @@ Every run is logged to `~/Library/Logs/to_gdocs.log`, including Google's own rea
 Edit the constants at the top of `to_gdocs.py`:
 
 - `REMOTE`: the rclone remote name.
-- `FOLDER_NAME`: the Drive folder. The default is "From Mac" in your macOS language.
+- `FOLDER_NAME`: the Drive folder, "From Mac" by default.
 - `STALL_TIMEOUT`: how long Google may stay silent before the tool checks and retries.
 
 ## Uninstall

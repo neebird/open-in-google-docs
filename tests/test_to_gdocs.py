@@ -9,7 +9,6 @@ import http.server
 import io
 import json
 import os
-import plistlib
 import re
 import socket
 import sys
@@ -28,7 +27,7 @@ import to_gdocs as g  # noqa: E402
 MIME_EXT = {mime: ext for ext, (mime, _) in g.SOURCE_TYPES.items()}
 SHEET = g.EDIT_URLS[g.GOOGLE_SHEET]
 DOC = g.EDIT_URLS[g.GOOGLE_DOC]
-EN = g.TEXTS["en"]
+EN = g.T
 
 
 class FakeDrive:
@@ -179,7 +178,7 @@ class FakeTo(unittest.TestCase):
 
         for name, value in [("UPLOAD", DRIVE.base + "/upload/drive/v3/files?uploadType=multipart&fields=id"),
                             ("DRIVE", DRIVE.base + "/drive/v3/files"), ("STALL_TIMEOUT", 1),
-                            ("LOG", os.path.join(self.tmp.name, "log")), ("T", EN),
+                            ("LOG", os.path.join(self.tmp.name, "log")),
                             ("access_token", self.fake_token), ("folder_id", self.fake_folder)]:
             patcher = mock.patch.object(g, name, value)
             patcher.start()
@@ -498,33 +497,6 @@ class Units(unittest.TestCase):
                         self.assertRaises(urllib.error.HTTPError) as raised:
                     g.access_token(force_refresh=True)
                 self.assertEqual(g.detail(raised.exception), "HTTP 400 invalid_request: Missing parameter.")
-
-    def test_translations_are_complete(self):
-        for language, texts in g.TEXTS.items():
-            with self.subTest(language=language):
-                self.assertEqual(set(texts), set(EN))
-                for key, value in texts.items():
-                    self.assertIs(type(value), type(EN[key]), key)
-                    if isinstance(value, tuple):
-                        self.assertEqual(len(value), 2, key)
-                        self.assertEqual(bool(value[1]), bool(EN[key][1]), key)
-
-    def test_system_language_picks_the_first_translated_language(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            prefs = os.path.join(tmp, "prefs.plist")
-            for languages, expected in [(["uk-UA", "en-US"], "uk"), (["de-DE", "uk-UA"], "uk"),
-                                        (["ru-RU", "uk-UA", "en-US"], "uk"), (["de-DE"], "en"), ([], "en")]:
-                with self.subTest(languages=languages):
-                    with open(prefs, "wb") as f:
-                        plistlib.dump({"AppleLanguages": languages}, f, fmt=plistlib.FMT_BINARY)
-                    self.assertEqual(g.system_language(prefs), expected)
-            self.assertEqual(g.system_language(os.path.join(tmp, "missing.plist")), "en")
-            for content in [plistlib.dumps({"AppleLanguages": 5}), plistlib.dumps(["not", "a", "dict"]),
-                            plistlib.dumps({"AppleLanguages": ["uk"]})[:40]]:
-                with self.subTest(content=content[:20]):
-                    with open(prefs, "wb") as f:
-                        f.write(content)
-                    self.assertEqual(g.system_language(prefs), "en")
 
 
 class SlowNetwork(FakeTo):

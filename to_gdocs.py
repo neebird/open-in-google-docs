@@ -14,7 +14,6 @@ import http.client
 import io
 import json
 import os
-import plistlib
 import socket
 import subprocess
 import sys
@@ -27,7 +26,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 REMOTE = "gdrive"  # rclone remote with your own Google OAuth client
-FOLDER_NAME = None  # Drive folder for the converted files; None = "From Mac" in the system language
+FOLDER_NAME = "From Mac"  # Drive folder for the converted files
 # Quick Actions run with a minimal PATH, so look where Homebrew (Apple silicon, Intel) and MacPorts put rclone.
 RCLONE = next((p for p in ("/opt/homebrew/bin/rclone", "/usr/local/bin/rclone", "/opt/local/bin/rclone")
                if os.path.exists(p)), "rclone")
@@ -65,55 +64,22 @@ STALL_TIMEOUT = 30  # seconds of silence from Drive before an upload counts as s
 FOLDER_LOCK = threading.Lock()  # one re-lookup of a deleted target folder for all upload threads
 
 # Notification texts: (title, text) pairs; error hints follow the file name in the text.
-TEXTS = {
-    "en": {
-        "folder": "From Mac",
-        "unsupported": "This file type isn't supported",
-        "not_configured": ("Google Drive isn't set up yet", "Set up the rclone remote “gdrive” — see the README"),
-        "no_rclone": ("rclone isn't installed", "Install it with: brew install rclone"),
-        "login_now": ("Sign in to Google again", "Opening the sign-in page — click “Allow”, then try again"),
-        "login_again": ("Sign in to Google again", "run it once more to open the sign-in page"),
-        "drive_down": ("Error — see Library/Logs/to_gdocs.log", "Google Drive is unavailable"),
-        "upload_failed": "Upload failed — see Library/Logs/to_gdocs.log",
-        "password": ("Google couldn't open the file", "it may be password-protected"),
-        "damaged": ("Google couldn't read the file", "it's empty or damaged"),
-        "too_large": ("The file is too large for Google", ""),
-        "drive_full": ("Your Google Drive is full", ""),
-        "rate_limited": ("Google is limiting uploads", "try again in a minute"),
-        "no_answer": ("Google didn't respond", "try again"),
-        "offline": ("No internet connection", ""),
-    },
-    "uk": {
-        "folder": "З Mac",
-        "unsupported": "Цей формат не підтримується",
-        "not_configured": ("Google Drive ще не налаштовано", "Налаштуй підключення rclone «gdrive» — див. README"),
-        "no_rclone": ("rclone не встановлено", "Встанови: brew install rclone"),
-        "login_now": ("Потрібно знову увійти в Google", "Відкриваю сторінку входу — натисни «Дозволити» і повтори"),
-        "login_again": ("Потрібно знову увійти в Google", "запусти ще раз, відкриється сторінка входу"),
-        "drive_down": ("Помилка — див. Library/Logs/to_gdocs.log", "Google Drive недоступний"),
-        "upload_failed": "Помилка завантаження — див. Library/Logs/to_gdocs.log",
-        "password": ("Google не зміг відкрити файл", "можливо, він захищений паролем"),
-        "damaged": ("Google не зміг прочитати файл", "він порожній або пошкоджений"),
-        "too_large": ("Файл завеликий для Google", ""),
-        "drive_full": ("На Google Диску закінчилося місце", ""),
-        "rate_limited": ("Google тимчасово обмежив завантаження", "повтори за хвилину"),
-        "no_answer": ("Google не відповів", "спробуй ще раз"),
-        "offline": ("Немає підключення до інтернету", ""),
-    },
+T = {
+    "unsupported": "This file type isn't supported",
+    "not_configured": ("Google Drive isn't set up yet", "Set up the rclone remote “gdrive” — see the README"),
+    "no_rclone": ("rclone isn't installed", "Install it with: brew install rclone"),
+    "login_now": ("Sign in to Google again", "Opening the sign-in page — click “Allow”, then try again"),
+    "login_again": ("Sign in to Google again", "run it once more to open the sign-in page"),
+    "drive_down": ("Error — see Library/Logs/to_gdocs.log", "Google Drive is unavailable"),
+    "upload_failed": "Upload failed — see Library/Logs/to_gdocs.log",
+    "password": ("Google couldn't open the file", "it may be password-protected"),
+    "damaged": ("Google couldn't read the file", "it's empty or damaged"),
+    "too_large": ("The file is too large for Google", ""),
+    "drive_full": ("Your Google Drive is full", ""),
+    "rate_limited": ("Google is limiting uploads", "try again in a minute"),
+    "no_answer": ("Google didn't respond", "try again"),
+    "offline": ("No internet connection", ""),
 }
-
-
-def system_language(prefs=os.path.expanduser("~/Library/Preferences/.GlobalPreferences.plist")):
-    """The first of the user's macOS languages that TEXTS has, else English."""
-    try:
-        with open(prefs, "rb") as f:
-            languages = plistlib.load(f).get("AppleLanguages", [])
-        return next((code[:2] for code in languages if isinstance(code, str) and code[:2] in TEXTS), "en")
-    except Exception:  # runs at import: a malformed prefs file must not stop the tool
-        return "en"
-
-
-T = TEXTS[system_language()]
 
 
 class LoginRequired(Exception):
@@ -231,7 +197,7 @@ def folder_id(token, refresh=False):
                 return cached
         except OSError:
             pass
-    name = FOLDER_NAME or T["folder"]
+    name = FOLDER_NAME
     query = "name = '%s' and mimeType = '%s' and 'root' in parents and trashed = false" % (
         name.replace("\\", "\\\\").replace("'", "\\'"), GOOGLE_FOLDER)
     found = call("GET", DRIVE + "?" + urllib.parse.urlencode(
