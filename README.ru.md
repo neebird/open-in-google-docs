@@ -1,10 +1,17 @@
-# Open in Google Docs — Quick Action для Finder на macOS
+<h1 align="center">Open in Google Docs</h1>
+
+<p align="center">Quick Action для Finder на macOS</p>
+
+<p align="center">
+  <a href="README.md"><img src="docs/lang-en.svg" alt="English" height="30"></a>
+  <a href="README.ru.md"><img src="docs/lang-ru-active.svg" alt="Русский" height="30"></a>
+</p>
+
+<p align="center">
+  <img src="docs/demo.gif" width="860" alt="Правый клик по файлу Word в Finder, «Быстрые действия → В Google Docs», и он открывается как Google Документ">
+</p>
 
 Правый клик по файлам Word, Excel, OpenDocument, RTF или CSV в Finder, и через несколько секунд они открываются в браузере **настоящими Google Документами и Таблицами**. Не нужны ни Google Drive для компьютера, ни папка синхронизации, ни перетаскивание файлов во вкладку браузера.
-
-![Правый клик по файлу Word в Finder, «Быстрые действия → В Google Docs», и он открывается как Google Документ](docs/demo.gif)
-
-[English version](README.md)
 
 ## Что умеет
 
