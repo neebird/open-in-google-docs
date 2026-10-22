@@ -19,6 +19,7 @@ import time
 import unittest
 import urllib.error
 import urllib.parse
+import urllib.request
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -79,7 +80,7 @@ class FakeDrive:
 
             def do_POST(self):
                 if self.path.startswith("/slowread"):
-                    time.sleep(8)  # never reads the body: the client has to time out while sending
+                    drive.release.wait(20)  # never reads the body or answers: the client has to time out
                     return
                 body = self.rfile.read(int(self.headers["Content-Length"]))
                 if self.expired():
@@ -132,7 +133,7 @@ class FakeDrive:
 
     def clear(self):
         self.script, self.records, self.queries, self.uploads = {}, [], [], []
-        self.deleted, self.expired = set(), set()
+        self.deleted, self.expired, self.release = set(), set(), threading.Event()
 
 
 DRIVE = None
@@ -141,9 +142,12 @@ DRIVE = None
 def setUpModule():
     global DRIVE
     DRIVE = FakeDrive()
+    # Talk to 127.0.0.1 directly even when an HTTP proxy is configured on this Mac.
+    urllib.request.install_opener(urllib.request.build_opener(urllib.request.ProxyHandler({})))
 
 
 def tearDownModule():
+    urllib.request.install_opener(None)
     DRIVE.server.shutdown()
     DRIVE.server.server_close()
 
@@ -252,13 +256,13 @@ class Stalls(FakeTo):
         log = self.run_main([self.make("Lost.xlsx")], {"Lost.xlsx": ["lost:L1"]})
         self.assertEqual(self.opened(), [SHEET % "L1"])
         self.assertEqual(len(DRIVE.uploads), 1)
-        self.assertIn("found Lost.xlsx after timeout", log)
+        self.assertRegex(log, r"found Lost\.xlsx after \w+\('timed out'\)")  # timeout / TimeoutError by version
 
     def test_stall_without_file_retries_with_the_same_tag(self):
         log = self.run_main([self.make("Stuck.xlsx")], {"Stuck.xlsx": ["stall", "ok:R2"]})
         self.assertEqual(self.opened(), [SHEET % "R2"])
         self.assertEqual(len({u["tag"] for u in DRIVE.uploads}), 1)
-        self.assertIn("retry Stuck.xlsx: timeout", log)
+        self.assertRegex(log, r"retry Stuck\.xlsx: \w+\('timed out'\)")
 
     def test_file_created_by_the_second_attempt_is_found(self):
         self.run_main([self.make("Stuck2.xlsx")], {"Stuck2.xlsx": ["stall", "lost:Y2"]})
@@ -419,12 +423,44 @@ class Units(unittest.TestCase):
     def test_access_token_needs_a_configured_remote(self):
         with tempfile.TemporaryDirectory() as tmp:
             conf = os.path.join(tmp, "rclone.conf")
-            for text in ["", "[gdrive]\ntype = drive\n", "[gdrive]\nclient_id =\nclient_secret = s\ntoken = {}\n"]:
+            for text in ["", "[gdrive]\ntype = drive\n", "[gdrive]\nclient_id =\nclient_secret = s\ntoken = {}\n",
+                         "[gdrive]\nclient_id = id\nclient_secret = s\ntoken = not json\n",
+                         '[gdrive]\nclient_id = id\nclient_secret = s\ntoken = ["no", "refresh token"]\n',
+                         "# Encrypted rclone configuration File\n\nRCLONE_ENCRYPT_V0:\nc2VjcmV0\n",
+                         "[gdrive]\nclient_id = id\nclient_secret FAKE-SECRET-123\n"]:
                 with self.subTest(conf=text), open(conf, "w") as f:
                     f.write(text)
                 with mock.patch.object(g, "RCLONE_CONF", conf), \
-                        mock.patch.object(g, "TOKEN_CACHE", os.path.join(tmp, "none.json")):
-                    self.assertRaises(g.NotConfigured, g.access_token)
+                        mock.patch.object(g, "TOKEN_CACHE", os.path.join(tmp, "none.json")), \
+                        self.assertRaises(g.NotConfigured) as raised:
+                    g.access_token()
+                self.assertNotIn("FAKE-SECRET", str(raised.exception))  # the message goes to the log
+
+    def test_cached_token_belongs_to_the_linked_account(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            conf, cache = os.path.join(tmp, "rclone.conf"), os.path.join(tmp, "token.json")
+
+            def link(refresh_token):
+                with open(conf, "w") as f:
+                    f.write('[gdrive]\nclient_id = id\nclient_secret = s\ntoken = {"refresh_token": "%s"}\n'
+                            % refresh_token)
+
+            def google_issues(access_token):
+                response = mock.MagicMock()
+                response.__enter__.return_value = io.BytesIO(json.dumps(
+                    {"access_token": access_token, "expires_in": 3600}).encode())
+                return mock.patch.object(g.urllib.request, "urlopen", return_value=response)
+
+            with mock.patch.object(g, "RCLONE_CONF", conf), mock.patch.object(g, "TOKEN_CACHE", cache), \
+                    mock.patch.object(g, "CACHE_DIR", tmp):
+                link("refresh-A")
+                with google_issues("access-A"):
+                    self.assertEqual(g.access_token(), "access-A")
+                with google_issues("unused"):
+                    self.assertEqual(g.access_token(), "access-A")  # cached for the same account
+                link("refresh-B")  # the remote is re-linked to another Google account
+                with google_issues("access-B"):
+                    self.assertEqual(g.access_token(), "access-B")
 
     def test_revoked_refresh_token_clears_the_cache(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -483,17 +519,25 @@ class Units(unittest.TestCase):
                         plistlib.dump({"AppleLanguages": languages}, f, fmt=plistlib.FMT_BINARY)
                     self.assertEqual(g.system_language(prefs), expected)
             self.assertEqual(g.system_language(os.path.join(tmp, "missing.plist")), "en")
+            for content in [plistlib.dumps({"AppleLanguages": 5}), plistlib.dumps(["not", "a", "dict"]),
+                            plistlib.dumps({"AppleLanguages": ["ru"]})[:40]]:
+                with self.subTest(content=content[:20]):
+                    with open(prefs, "wb") as f:
+                        f.write(content)
+                    self.assertEqual(g.system_language(prefs), "en")
 
 
 class SlowNetwork(FakeTo):
-    def test_stall_while_sending_counts_as_stalled(self):
+    def test_a_silent_server_is_given_up_on_by_the_timeout(self):
         path = self.make("Big.xlsx")
         with open(path, "wb") as f:
             f.write(os.urandom(2**20))
+        self.addCleanup(DRIVE.release.set)  # the server holds the connection until the client gives up
         with mock.patch.object(g, "UPLOAD", DRIVE.base + "/slowread"):
             with self.assertRaises(OSError) as raised:
                 g.upload(path, "token", "FOLDER", "0" * 32)
         self.assertTrue(g.stalled(raised.exception))
+        self.assertIsInstance(getattr(raised.exception, "reason", raised.exception), (socket.timeout, TimeoutError))
 
 
 if __name__ == "__main__":

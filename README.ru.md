@@ -2,6 +2,8 @@
 
 Правый клик по файлам Word, Excel, OpenDocument, RTF или CSV в Finder, и через несколько секунд они открываются в браузере **настоящими Google Документами и Таблицами**. Не нужны ни Google Drive для компьютера, ни папка синхронизации, ни перетаскивание файлов во вкладку браузера.
 
+![Правый клик по файлу Word в Finder, «Быстрые действия → В Google Docs», и он открывается как Google Документ](docs/demo.gif)
+
 [English version](README.md)
 
 ## Что умеет
@@ -25,7 +27,7 @@
 
 ## Что нужно
 
-- macOS с Quick Actions в Finder.
+- macOS 12 Monterey или новее.
 - Xcode Command Line Tools, они дают `/usr/bin/python3`: `xcode-select --install`.
 - [rclone](https://rclone.org), он нужен только для входа в Google: `brew install rclone`.
 - Аккаунт Google и свой бесплатный OAuth-клиент в Google Cloud (шаг 1 ниже).
@@ -81,7 +83,7 @@ rclone config create gdrive drive client_id=ТВОЙ_CLIENT_ID client_secret=Т�
 
 | Уведомление | Что делать |
 |---|---|
-| Google Drive ещё не настроен | Сделай шаги 1–2. Подключение rclone должно называться `gdrive` и использовать твой client ID. |
+| Google Drive ещё не настроен | Сделай шаги 1–2. Подключение rclone должно называться `gdrive` и использовать твой client ID. Утилита читает `~/.config/rclone/rclone.conf` (или старый `~/.rclone.conf`; проверь командой `rclone config file`) и не умеет читать конфиг rclone, зашифрованный паролем. |
 | rclone не установлен | `brew install rclone` |
 | Нужно заново войти в Google | Откроется страница входа: нажми **Разрешить** и запусти Quick Action ещё раз. Если так каждую неделю, опубликуй приложение (шаг 1.4). |
 | Google не смог открыть файл | Скорее всего, файл под паролем. |

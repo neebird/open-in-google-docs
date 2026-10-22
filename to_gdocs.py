@@ -9,6 +9,7 @@ Python 3.9 stdlib only (runs on the system /usr/bin/python3).
 """
 import configparser
 import errno
+import hashlib
 import http.client
 import io
 import json
@@ -30,7 +31,9 @@ FOLDER_NAME = None  # Drive folder for the converted files; None = "From Mac" in
 # Quick Actions run with a minimal PATH, so look where Homebrew (Apple silicon, Intel) and MacPorts put rclone.
 RCLONE = next((p for p in ("/opt/homebrew/bin/rclone", "/usr/local/bin/rclone", "/opt/local/bin/rclone")
                if os.path.exists(p)), "rclone")
-RCLONE_CONF = os.path.expanduser("~/.config/rclone/rclone.conf")
+# rclone's config file: the usual place, or the legacy one if only that exists
+RCLONE_CONF = next((p for p in map(os.path.expanduser, ("~/.config/rclone/rclone.conf", "~/.rclone.conf"))
+                    if os.path.exists(p)), os.path.expanduser("~/.config/rclone/rclone.conf"))
 CACHE_DIR = os.path.expanduser("~/Library/Caches/to_gdocs")
 TOKEN_CACHE = os.path.join(CACHE_DIR, "token.json")
 FOLDER_CACHE = os.path.join(CACHE_DIR, "folder_id")
@@ -122,9 +125,9 @@ def system_language(prefs=os.path.expanduser("~/Library/Preferences/.GlobalPrefe
     try:
         with open(prefs, "rb") as f:
             languages = plistlib.load(f).get("AppleLanguages", [])
-    except (OSError, ValueError, AttributeError):
-        languages = []
-    return next((code[:2] for code in languages if isinstance(code, str) and code[:2] in TEXTS), "en")
+        return next((code[:2] for code in languages if isinstance(code, str) and code[:2] in TEXTS), "en")
+    except Exception:  # runs at import: a malformed prefs file must not stop the tool
+        return "en"
 
 
 T = TEXTS[system_language()]
@@ -160,24 +163,32 @@ def write_private(path, text):
 
 
 def access_token(force_refresh=False):
+    conf = configparser.ConfigParser(interpolation=None)
+    try:
+        conf.read(RCLONE_CONF)
+        remote = conf[REMOTE] if conf.has_section(REMOTE) else {}
+        client_id, client_secret = remote.get("client_id"), remote.get("client_secret")
+        refresh_token = json.loads(remote.get("token") or "{}").get("refresh_token")
+    except (configparser.Error, ValueError, AttributeError) as e:
+        # Only the error type: rclone.conf lines hold the client secret, and the log may get shared.
+        raise NotConfigured("%s: unreadable (%s), e.g. a password-encrypted config" % (RCLONE_CONF, type(e).__name__))
+    if not (client_id and client_secret and refresh_token):
+        raise NotConfigured("%s: remote [%s] needs client_id, client_secret and token" % (RCLONE_CONF, REMOTE))
+    # The cached token is only good for the account it was issued for: the remote may have been re-linked.
+    account = hashlib.sha256((client_id + str(refresh_token)).encode()).hexdigest()[:16]
     if not force_refresh:
         try:
             with open(TOKEN_CACHE) as f:
                 cached = json.load(f)
-            if cached["expires_at"] > time.time() + 60:
+            if cached["account"] == account and cached["expires_at"] > time.time() + 60:
                 return cached["access_token"]
-        except (OSError, ValueError, KeyError):
+        except (OSError, ValueError, KeyError, TypeError):
             pass
 
-    conf = configparser.ConfigParser(interpolation=None)
-    conf.read(RCLONE_CONF)
-    remote = conf[REMOTE] if conf.has_section(REMOTE) else {}
-    if not all(remote.get(key) for key in ("client_id", "client_secret", "token")):
-        raise NotConfigured("%s: remote [%s] needs client_id, client_secret and token" % (RCLONE_CONF, REMOTE))
     body = urllib.parse.urlencode({
-        "client_id": remote["client_id"],
-        "client_secret": remote["client_secret"],
-        "refresh_token": json.loads(remote["token"])["refresh_token"],
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": refresh_token,
         "grant_type": "refresh_token",
     }).encode()
     try:
@@ -200,6 +211,7 @@ def access_token(force_refresh=False):
             raise NotConfigured("Google rejected the OAuth client: %s" % detail(e))
         raise
     write_private(TOKEN_CACHE, json.dumps({
+        "account": account,
         "access_token": data["access_token"],
         "expires_at": time.time() + data.get("expires_in", 3600),
     }))

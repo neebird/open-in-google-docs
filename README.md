@@ -2,6 +2,8 @@
 
 Right-click Word, Excel, OpenDocument, RTF or CSV files in Finder and get them as **native Google Docs and Google Sheets**, open in your browser a few seconds later. No Google Drive for desktop, no sync folder, no dragging files into a browser tab.
 
+![Right-click a Word file in Finder, choose Quick Actions → Open in Google Docs, and it opens as a Google Doc](docs/demo.gif)
+
 [Русская версия](README.ru.md)
 
 ## What it does
@@ -25,7 +27,7 @@ Right-click Word, Excel, OpenDocument, RTF or CSV files in Finder and get them a
 
 ## Requirements
 
-- macOS with Finder Quick Actions.
+- macOS 12 Monterey or later.
 - Xcode Command Line Tools, which provide `/usr/bin/python3`: `xcode-select --install`.
 - [rclone](https://rclone.org), used only to sign in to Google: `brew install rclone`.
 - A Google account and your own free Google Cloud OAuth client (step 1 below).
@@ -81,7 +83,7 @@ Every run is logged to `~/Library/Logs/to_gdocs.log`, including Google's own rea
 
 | Notification | What to do |
 |---|---|
-| Google Drive isn't set up yet | Do setup steps 1–2. The rclone remote must be called `gdrive` and use your own client ID. |
+| Google Drive isn't set up yet | Do setup steps 1–2. The rclone remote must be called `gdrive` and use your own client ID. The tool reads `~/.config/rclone/rclone.conf` (or the legacy `~/.rclone.conf`; check with `rclone config file`) and can't read a password-encrypted rclone config. |
 | rclone isn't installed | `brew install rclone` |
 | Sign in to Google again | A browser page opens: click **Allow** and run the Quick Action again. If this happens every week, publish your app (step 1.4). |
 | Google couldn't open the file | The file is probably password-protected. |

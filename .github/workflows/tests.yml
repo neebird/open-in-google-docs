@@ -15,3 +15,5 @@ jobs:
         run: find quick-actions -type f -print0 | xargs -0 plutil -lint
       - name: Tests on the system Python the Quick Action uses
         run: /usr/bin/python3 -m unittest discover -s tests -v
+      - name: Tests on the runner's current Python
+        run: python3 --version && python3 -m unittest discover -s tests -v
